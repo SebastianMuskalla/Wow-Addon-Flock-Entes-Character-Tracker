@@ -1,7 +1,7 @@
 ## Interface: 120005
 ## Title: Altruis Alt Manager
 ## Author: Shredxt
-## Version: 12.0.5-r4
+## Version: 12.0.5-r6
 ## Notes: Concise information about your alts and weekly stuff.
 ## SavedVariables: AltManagerDB
 ## IconTexture: Interface\Icons\Inv_misc_idol_01
