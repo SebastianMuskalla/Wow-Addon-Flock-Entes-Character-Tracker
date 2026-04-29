@@ -645,6 +645,7 @@ local dungeons = {
 	-- [210] = "COS",
 	-- [227] = "LOWR",
 	-- [234] = "UPPR",
+	[239] = "SEAT", -- Seat of the Triumvirate
 	-- BFA
 	-- [244] = "AD",
 	-- [245] = "FH",
@@ -695,7 +696,6 @@ local dungeons = {
 	[558] = "MT", -- Magister's Terrace
 	[559] = "NPX", -- Nexus-Point Xenas
 	[560] = "MC", -- Maisara Caverns
-	[583] = "SEAT", -- Seat of the Triumvirate
 };
 
 function AltManager:CollectData()
@@ -1120,7 +1120,7 @@ function AltManager:CreateContent()
 		manaflux = {
 			order = 6.3,
 			label = manafluxLabel,
-			data = function(alt_data) return (alt_data.manaflux_total and (tostring(alt_data.manaflux_earned) .. " / " .. C_CurrencyInfo.GetCurrencyInfo(3378).maxQuantity) or "?")  end,
+			data = function(alt_data) return (alt_data.manaflux_total and (tostring(alt_data.manaflux_total) .. " / " .. C_CurrencyInfo.GetCurrencyInfo(3378).maxQuantity) or "?")  end,
 		},
 		radiant_spark = {
 			order = 6.4,
