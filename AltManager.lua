@@ -42,7 +42,6 @@ SLASH_ALTMANAGER2 = "/alts";
 local function GetCurrencyStats(id)
 	local info = C_CurrencyInfo.GetCurrencyInfo(id)
 	if not info then return 0, 0, 0 end
-    
     -- Returns: Owned, Earned (capped at max), and Max Cap
 	return info.quantity, math.min(info.totalEarned, info.maxQuantity), info.maxQuantity
 end
@@ -80,7 +79,6 @@ do
 	main_frame.background:SetAllPoints()
 	main_frame.background:SetDrawLayer("ARTWORK", 1)
 	main_frame.background:SetColorTexture(0, 0, 0, 0.5)
-
 	-- Set frame position
 	main_frame:ClearAllPoints()
 	main_frame:SetPoint("CENTER", UIParent, "CENTER", offsetX, offsetY)
@@ -127,7 +125,6 @@ do
 			AltManager:HideInterface()
 		end
 	end)
-
 	-- Show Frame
 	main_frame:Hide()
 end
@@ -446,13 +443,11 @@ function AltManager:CreateFontFrame(parent, x_size, height, relative_to, y_offse
 end
 ]]
 
-
 function AltManager:CreateFontFrame(parent, x_size, height, relative_to, y_offset, label, justify, fontPath)
     local f = CreateFrame("Button", nil, parent)
     f:SetSize(x_size, height)
     f:SetText(label)
     f:SetPoint("TOPLEFT", relative_to, "TOPLEFT", 0, y_offset)
-    
     local fs = f:GetFontString()
     fs:SetJustifyH(justify)
     fs:SetJustifyV("MIDDLE")
@@ -535,7 +530,6 @@ function AltManager:RemoveCharactersByName(name)
 
 	print("Found " .. (#indices) .. " characters by the name of " .. name)
 	print("Please reload ui to update the displayed info.")
-
 	-- things wont be redrawn
 end
 
@@ -563,7 +557,6 @@ function AltManager:RemoveCharacterByGuid(index, skip_confirmation)
 					break
 				end
 			end
-
 			-- and hide the remove button
 			if self.main_frame.remove_buttons ~= nil and self.main_frame.remove_buttons[index] ~= nil then
 				self.main_frame.remove_buttons[index]:Hide()
@@ -599,7 +592,6 @@ function AltManager:RemoveCharacterByGuid(index, skip_confirmation)
 	else
 		delete();
 	end
-
 end
 
 function AltManager:StoreData(data)
@@ -981,11 +973,30 @@ function AltManager:CloseInstancesUnroll()
 end
 
 function AltManager:ProduceRelevantMythics(run_history)
-	-- find thresholds
-	local weekly_info = C_WeeklyRewards.GetActivities(Enum.WeeklyRewardChestThresholdType.MythicPlus);
+	-- =========================================
+    -- FAKE DATA TEST INJECTION
+    -- =========================================
+	--[[
+    local weekly_info = {
+        { threshold = 1 },
+        { threshold = 4 },
+        { threshold = 8 }
+    }
+    run_history = {
+        { level = 10 }, -- Slot 1 (Run 1)
+        { level = 9 },  -- Slot 2 (Run 2)
+        { level = 9 },  -- Slot 2 (Run 3)
+        { level = 8 },  -- Slot 2 (Run 4)
+        { level = 7 },  -- Slot 3 (Run 5)
+        { level = 5 },  -- Slot 3 (Run 6)
+        { level = 4 },  -- Slot 3 (Run 7)
+        { level = 2 }   -- Slot 3 (Run 8)
+    }
+	]]--
+    -- =========================================
+    local weekly_info = C_WeeklyRewards.GetActivities(Enum.WeeklyRewardChestThresholdType.MythicPlus);  -- Comment this out if you want to use the fake data above
 	table.sort(run_history, function(left, right) return left.level > right.level; end);
 	local thresholds = {}
-
 	local max_threshold = 0
 	for i = 1 , #weekly_info do
 		thresholds[weekly_info[i].threshold] = true;
@@ -993,48 +1004,43 @@ function AltManager:ProduceRelevantMythics(run_history)
 			max_threshold = weekly_info[i].threshold;
 		end
 	end
-	return run_history, thresholds, max_threshold
+	return run_history, thresholds, max_threshold, weekly_info
 end
 
 function AltManager:MythicRunHistoryString(alt_data, vault_slot)
-    if alt_data.run_history == nil or alt_data.run_history == 0 or next(alt_data.run_history) == nil then
+    local history = alt_data.run_history
+    if type(history) ~= "table" or not next(history) then -- 
+        return "-"										  -- Comment this out if you want to use the fake data above
+    end                                                   -- 
+    local sorted_history, _, _, weekly_info = self:ProduceRelevantMythics(history)
+    if not weekly_info or not weekly_info[vault_slot] then return "-" end
+
+    local end_idx = weekly_info[vault_slot].threshold
+    local start_idx = 1
+    if vault_slot > 1 and weekly_info[vault_slot - 1] then
+        start_idx = weekly_info[vault_slot - 1].threshold + 1
+    end
+
+    local total_runs = #sorted_history
+    if total_runs < start_idx then
         return "-"
     end
 
-    local sorted_history = AltManager:ProduceRelevantMythics(alt_data.run_history)
-    local total_runs = #sorted_history
     local result = ""
+    local max_run = math.min(end_idx, total_runs)
+    for i = start_idx, max_run do
+        local run_level = tostring(sorted_history[i].level)
 
-    if vault_slot == 1 then
-        if total_runs >= 1 then
-            result = "|cFF00FF00" .. tostring(sorted_history[1].level) .. "|r "
+        if i == end_idx then
+            run_level = "|cFF00FF00" .. run_level .. "|r"
         end
-    elseif vault_slot == 2 then
-        local max_runs = math.min(4, total_runs)
-        for run = 2, max_runs do
-            local run_level = tostring(sorted_history[run].level)
-            if run == 4 then
-                run_level = "|cFF00FF00" .. run_level .. "|r"
-            end
-            result = result .. run_level .. " "
-        end
-    elseif vault_slot == 3 then
-        local max_runs = math.min(8, total_runs)
-        for run = 5, max_runs do
-            local run_level = tostring(sorted_history[run].level)
-            if run == 8 then
-                run_level = "|cFF00FF00" .. run_level .. "|r"
-            end
-            result = result .. run_level .. " "
-        end
+
+        result = result .. run_level .. " "
     end
-
-    return result ~= "" and result or "-"
+    return result
 end
 
-
 function AltManager:CreateContent()
-
 	-- Close button
 	self.main_frame.closeButton = CreateFrame("Button", "CloseButton", self.main_frame, "UIPanelCloseButton");
 	self.main_frame.closeButton:ClearAllPoints()
