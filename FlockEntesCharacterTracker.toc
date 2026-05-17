@@ -1,0 +1,12 @@
+## Interface: 120005
+## Title: Flock - Ente's Character Tracker
+## Author: Sebastian Muskalla
+## Version: 0.1.0
+## Notes: Tracks information about all your characters.
+## SavedVariables: FlockDB
+## IconTexture: Interface\Icons\Inv_misc_idol_01
+
+embeds.xml
+Constants.lua
+Rows.lua
+FlockEntesCharacterTracker.lua

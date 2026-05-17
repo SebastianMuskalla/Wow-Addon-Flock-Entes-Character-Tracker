@@ -1,0 +1,9 @@
+Copyright 2026 Sebastian Muskalla
+
+This project contains free and open-source software.
+
+Flock - Ente's Character Tracker is based on Altruis Alt Manager ([curseforge](https://www.curseforge.com/wow/addons/altruis-alt-manager), [GitHub](https://github.com/shredxt/AltruisAltManager)), copyright Shredxt, licensed under the [GPLv3 (GNU General Public License version 3)](GPLv3.LICENSE).
+
+The included font [Source Sans](fonts/SourceSans3-Semibold.ttf) is licensed under the [SIL OFL 1.1](OFL.LICENSE) with the Reserved Font Name "Source", see [OFL.LICENSE](OFL.LICENSE).
+
+The rest of the project is licensed under the [GPLv3 (GNU General Public License version 3)](GPLv3.LICENSE) see [GPLv3.LICENSE](GPLv3.LICENSE).
