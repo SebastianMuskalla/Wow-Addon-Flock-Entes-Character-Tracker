@@ -6,8 +6,10 @@ local TYPE_DYNAMIC = FlockEntesCharacterTracker.CONSTANTS.TYPE_DYNAMIC
 -- Input field: Input box that the user can type into, which is then persisted to the database.
 local TYPE_INPUT   = FlockEntesCharacterTracker.CONSTANTS.TYPE_INPUT
 
--- Template for a row of the table
-local rowTemplate = {
+-- Templates for a row of the table
+
+local templateDynamicRow = {
+    -- Default type (does not need to be specified)
     type = TYPE_DYNAMIC,
     -- Internal unique key. Used to access the database.
     key = "dummy",
@@ -24,6 +26,16 @@ local rowTemplate = {
     format = function(value) return value end,
 }
 
+local templateInputRow = {
+    type = TYPE_INPUT,
+    -- Internal unique key. Used to access the database.
+    key = "dummyInput",
+    -- Row title, shown in the first column.
+    title = "Input",
+    -- Optional for showing multiple lines (defaults to 1)
+    lines = 1,
+}
+
 local bonusroll = {
     type = TYPE_INPUT,
     key = "bonusroll",
@@ -34,6 +46,7 @@ local todo = {
     type = TYPE_INPUT,
     key = "todo",
     title = "To Do",
+    lines = 3,
 }
 
 local name = {
@@ -90,6 +103,48 @@ local mythicPlus = {
     end,
     format = function(value)
         return value.currentSeasonScore
+    end,
+}
+
+local resilientKeystoneAchievements = {
+    [12] = 61233,
+    [13] = 61235,
+    [14] = 61236,
+    [15] = 61237,
+    [16] = 61239,
+    [17] = 61240,
+    [18] = 61241,
+    [19] = 61242,
+    [20] = 61243,
+    [21] = 61244,
+    [22] = 61245,
+    [23] = 61246,
+    [24] = 61247,
+    [25] = 61248,
+    [26] = 61249,
+    [27] = 61250,
+    [28] = 61251,
+    [29] = 61252,
+    [30] = 61253,
+}
+
+local resilientKeystone = {
+    key = "resilientKeystone",
+    title = "Resi",
+    updateCharacterValue = function(stored)
+        for level = 30, 12, -1 do
+            local _, _, _, _, _, _, _, _, _, _, _, _, wasEarnedByMe =
+                GetAchievementInfo(resilientKeystoneAchievements[level])
+
+            if wasEarnedByMe then
+                return level
+            end
+        end
+
+        return 0
+    end,
+    format = function(value)
+        return value > 0 and "+"..value or "-"
     end,
 }
 
@@ -273,6 +328,7 @@ local ROWS = {
     itemLevel,
     {},
     mythicPlus,
+    resilientKeystone,
     keystone,
     {},
     bonusroll,
