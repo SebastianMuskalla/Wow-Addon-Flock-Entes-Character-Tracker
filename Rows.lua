@@ -239,11 +239,20 @@ local vault = {
     key = "vaultEntries",
     title = "Vault",
     updateCharacterValue = function(stored)
-        return C_WeeklyRewards.GetActivities()
+        return {
+            activities = C_WeeklyRewards.GetActivities(),
+            hasAvailableRewards = C_WeeklyRewards.HasAvailableRewards(),
+        }
     end,
     format = function(value)
+        if value.hasAvailableRewards then
+            return "|cff00ff00OPEN ME|r"
+        end
+
+        local activities = value.activities
+
         local unlocked = 0
-        for _, activity in ipairs(value) do
+        for _, activity in ipairs(activities) do
             if activity.progress and activity.threshold and activity.progress >= activity.threshold then
                 unlocked = unlocked + 1
             end
