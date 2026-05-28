@@ -17,9 +17,12 @@ This addon has **no** in-game configuration.
 Instead, the file [Rows.lua](Rows.lua) needs to be modified to add / remove entries from the table.
 
 To add a new entry
-- create a copy of the definition of `rowTemplate` (`local rowTemplate = { ... }`),
+- create a copy of the appropriate template in [Rows.lua](Rows.lua),
 - configure this copy appropriately as described by the comments
 - insert it into the `ROWS` array at the bottom of the file.
+
+Rows that should be shown once for the whole table can be inserted into `GLOBAL_ROWS` instead.
+Global rows are displayed at the bottom of the table and span the full table width.
 
 Additionally, a few basic settings can be configured at the beginning of [FlockEntesCharacterTracker.lua](FlockEntesCharacterTracker.lua).
 

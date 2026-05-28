@@ -6,6 +6,7 @@ local mainFrame                     = CreateFrame("frame", nil, UIParent)
 -- Imports from other files.
 --
 local ROWS                          = FlockEntesCharacterTracker.ROWS
+local GLOBAL_ROWS                   = FlockEntesCharacterTracker.GLOBAL_ROWS or {}
 local TYPE_DYNAMIC                  = FlockEntesCharacterTracker.CONSTANTS.TYPE_DYNAMIC
 local TYPE_INPUT                    = FlockEntesCharacterTracker.CONSTANTS.TYPE_INPUT
 
@@ -39,6 +40,9 @@ local fontPath                      = "Interface\\AddOns\\FlockEntesCharacterTra
 
 local addonLoaded                   = false
 local pendingDelayedUpdate          = 0
+
+local renderTable
+local renderGlobalRows
 
 --
 -- Helpers
@@ -76,9 +80,17 @@ local function update()
         FlockDB.characters = {}
     end
 
+    if not FlockDB.global then
+        FlockDB.global = {}
+    end
+
     if UnitLevel("player") < minLevel then
         return
     end
+
+	C_MythicPlus.RequestRewards();
+	C_MythicPlus.RequestCurrentAffixes();
+	C_MythicPlus.RequestMapInfo();
 
     local data = FlockDB.characters[guid] or {}
 
@@ -86,13 +98,36 @@ local function update()
         local key = section.key
         if key then
             local oldValue = data[key]
-            if section.type ~= TYPE_INPUT and section.updateCharacterValue then
-                data[key] = section.updateCharacterValue(oldValue)
+            if section.type ~= TYPE_INPUT and section.updateValue then
+                data[key] = section.updateValue(oldValue)
             end
         end
     end
 
     FlockDB.characters[guid] = data
+
+    for _, section in ipairs(GLOBAL_ROWS) do
+        local key = section.key
+        if key and section.type ~= TYPE_INPUT and section.updateValue then
+            FlockDB.global[key] = section.updateValue(FlockDB.global[key])
+        end
+    end
+end
+
+local function runDelayedUpdate()
+    debug("Delayed update")
+    update()
+
+    if mainFrame:IsShown() then
+        renderTable()
+        renderGlobalRows()
+    end
+end
+
+local function requestTimePlayed()
+    if RequestTimePlayed then
+        RequestTimePlayed()
+    end
 end
 
 local function scheduleDelayedUpdate(delayInSeconds)
@@ -101,8 +136,7 @@ local function scheduleDelayedUpdate(delayInSeconds)
 
     C_Timer.After(delayInSeconds, function()
         if updateToken == pendingDelayedUpdate then
-            debug("Delayed update")
-            update()
+            runDelayedUpdate()
         end
     end)
 end
@@ -130,7 +164,7 @@ local function renderCell(parent, width, height, relative_to, y_offset, label, j
     font:SetJustifyH(justify)
     font:SetJustifyV("MIDDLE")
     frame:SetPushedTextOffset(0, 0)
-    font:SetWidth(120)
+    font:SetWidth(width)
     font:SetHeight(20)
 
     if fontPath then
@@ -150,12 +184,21 @@ local function rowHeight(section)
     return fontHeight * rowLines(section)
 end
 
+local function rowsHeight(rows)
+    local height = 0
+
+    for _, section in ipairs(rows) do
+        height = height + rowHeight(section)
+    end
+
+    return height
+end
+
 local function frameHeight()
     local height = 30 -- height of the top bar
 
-    for _, section in ipairs(ROWS) do
-        height = height + rowHeight(section)
-    end
+    height = height + rowsHeight(ROWS)
+    height = height + rowsHeight(GLOBAL_ROWS)
 
     return height
 end
@@ -254,23 +297,23 @@ local function sortedCharacters(characters)
     end
 
     table.sort(sorted, function(a, b)
-        local aItemLevel = a.data.itemLevel
-        local bItemLevel = b.data.itemLevel
+        local aVal = a and a.data and a.data.timePlayed and a.data.timePlayed.levelHours
+        local bVal = b and b.data and b.data.timePlayed and b.data.timePlayed.levelHours
 
-        if aItemLevel == nil and bItemLevel == nil then
+        if aVal == nil and bVal == nil then
             return a.guid < b.guid
         end
 
-        if aItemLevel == nil then
+        if aVal == nil then
             return false
         end
 
-        if bItemLevel == nil then
+        if bVal == nil then
             return true
         end
 
-        if aItemLevel ~= bItemLevel then
-            return aItemLevel > bItemLevel
+        if aVal ~= bVal then
+            return aVal > bVal
         end
 
         return a.guid < b.guid
@@ -279,7 +322,36 @@ local function sortedCharacters(characters)
     return sorted
 end
 
-local function renderTable()
+local function formattedSectionValue(section, data)
+    local key = section.key
+
+    if not key or not data[key] then
+        return nil
+    end
+
+    if section.format then
+        return section.format(data[key])
+    end
+
+    return tostring(data[key])
+end
+
+local function formattedGlobalValue(section, data)
+    local formattedData = formattedSectionValue(section, data)
+    local title = section.title
+
+    if not title or title == "" then
+        return formattedData
+    end
+
+    if not formattedData or formattedData == "" then
+        return title .. ":"
+    end
+
+    return title .. ": " .. formattedData
+end
+
+renderTable = function()
     local characters = FlockDB.characters
 
     mainFrame.characterColumns = mainFrame.characterColumns or {}
@@ -295,7 +367,7 @@ local function renderTable()
         end
         anchor.guid = characterGuid
         anchor.characterData = characterData
-        local height = frameHeight()
+        local height = rowsHeight(ROWS)
         anchor:SetSize(columnWidth, height)
 
         mainFrame.characterColumns[characterIndex].cell = mainFrame.characterColumns[characterIndex].cell or {}
@@ -331,14 +403,7 @@ local function renderTable()
                 currentCell:SetJustifyV(rowLines(section) > 1 and "TOP" or "MIDDLE")
                 currentCell:SetText(anchor.characterData[rowKey] or "")
             elseif key then -- TYPE_DYNAMIC
-                local formattedData = nil
-                if characterData[key] then
-                    if section.format then
-                        formattedData = section.format(characterData[key])
-                    else
-                        formattedData = tostring(characterData[key])
-                    end
-                end
+                local formattedData = formattedSectionValue(section, characterData)
                 local currentCell = cell[rowIndex] or
                     renderCell(anchor, columnWidth, rowHeight, anchor, -yOffset, formattedData or "",
                         "CENTER")
@@ -356,9 +421,100 @@ local function renderTable()
     end
 end
 
+renderGlobalRows = function()
+    local width = mainFrame:GetWidth()
+    local yOffset = rowsHeight(ROWS)
+
+    if not FlockDB then
+        FlockDB = {}
+    end
+
+    FlockDB.global = FlockDB.global or {}
+
+    mainFrame.globalCells = mainFrame.globalCells or {}
+    local cell = mainFrame.globalCells
+
+    for rowIndex, section in ipairs(GLOBAL_ROWS) do
+        local key = section.key
+        local currentRowHeight = rowHeight(section)
+
+        if key and section.type == TYPE_INPUT then
+            local rowKey = key
+            local currentCell = cell[rowIndex] or
+                renderInputCell(mainFrame, width, currentRowHeight, mainFrame, -yOffset, section,
+                    function()
+                        return FlockDB.global[rowKey]
+                    end,
+                    function(value)
+                        FlockDB.global[rowKey] = value
+                    end)
+
+            if not cell[rowIndex] then
+                cell[rowIndex] = currentCell
+            end
+
+            local title = section.title
+            local titleWidth = title and title ~= "" and columnWidth or 0
+            if titleWidth > 0 then
+                local formattedTitle = title .. ":"
+                currentCell.globalTitleCell = currentCell.globalTitleCell or
+                    renderCell(mainFrame, titleWidth, currentRowHeight, mainFrame, -yOffset, formattedTitle, "RIGHT")
+                currentCell.globalTitleCell:ClearAllPoints()
+                currentCell.globalTitleCell:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 4, -yOffset)
+                currentCell.globalTitleCell:SetSize(titleWidth, currentRowHeight)
+                currentCell.globalTitleCell:GetFontString():SetWidth(titleWidth)
+                currentCell.globalTitleCell:SetText(formattedTitle)
+                currentCell.globalTitleCell:Show()
+            elseif currentCell.globalTitleCell then
+                currentCell.globalTitleCell:Hide()
+            end
+
+            currentCell.container:ClearAllPoints()
+            currentCell.container:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", titleWidth + width * 0.02,
+                -yOffset - currentRowHeight * 0.1)
+            currentCell.container:SetPoint("BOTTOMRIGHT", mainFrame, "TOPLEFT", width * 0.98,
+                -yOffset - currentRowHeight * 0.9)
+            currentCell:SetMultiLine(rowLines(section) > 1)
+            currentCell:SetJustifyV(rowLines(section) > 1 and "TOP" or "MIDDLE")
+            currentCell:SetText(FlockDB.global[rowKey] or "")
+        elseif key then -- TYPE_DYNAMIC
+            local formattedData = formattedGlobalValue(section, FlockDB.global)
+            local currentCell = cell[rowIndex] or
+                renderCell(mainFrame, width, currentRowHeight, mainFrame, -yOffset, formattedData or "",
+                    "CENTER")
+
+            if not cell[rowIndex] then
+                cell[rowIndex] = currentCell
+            end
+
+            currentCell:ClearAllPoints()
+            currentCell:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 0, -yOffset)
+            currentCell:SetSize(width, currentRowHeight)
+            currentCell:GetFontString():SetWidth(width)
+            currentCell:SetText(formattedData or "")
+        else
+            local currentCell = cell[rowIndex] or
+                renderCell(mainFrame, width, currentRowHeight, mainFrame, -yOffset, " ", "CENTER")
+
+            if not cell[rowIndex] then
+                cell[rowIndex] = currentCell
+            end
+
+            currentCell:ClearAllPoints()
+            currentCell:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 0, -yOffset)
+            currentCell:SetSize(width, currentRowHeight)
+            currentCell:GetFontString():SetWidth(width)
+            currentCell:SetText(" ")
+        end
+
+        yOffset = yOffset + currentRowHeight
+    end
+end
+
 local function show()
     update()
     renderTable()
+    renderGlobalRows()
     mainFrame:Show()
 end
 
@@ -419,7 +575,7 @@ end
 local function renderFirstColumn()
     local firstColumn = mainFrame.firstColumn or CreateFrame("Button", nil, mainFrame)
     if not firstColumn then mainFrame.firstColumn = firstColumn end
-    local height = frameHeight()
+    local height = rowsHeight(ROWS)
     firstColumn:SetSize(columnWidth, height)
     firstColumn:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 4, -1)
 
@@ -450,9 +606,11 @@ local function renderFrame()
     renderTopBar()
 
     renderFirstColumn()
+    renderGlobalRows()
 end
 
 local function onLogin()
+    requestTimePlayed()
     update()
     renderFrame()
 end
@@ -462,7 +620,6 @@ local function onLoad()
 end
 
 function SlashCmdList.FLOCK(cmd, editbox)
-    update()
     show()
 
     if debugMode then
@@ -484,6 +641,7 @@ local function main()
     mainFrame:RegisterEvent("CHALLENGE_MODE_COMPLETED_REWARDS")
     mainFrame:RegisterEvent("WEEKLY_REWARDS_UPDATE")
     mainFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+    mainFrame:RegisterEvent("TIME_PLAYED_MSG")
 
     mainFrame:SetScript("OnEvent", function(self, event, ...)
         if event == "ADDON_LOADED" then
@@ -493,12 +651,26 @@ local function main()
             end
         elseif event == "PLAYER_LOGIN" then
             onLogin()
+        elseif event == "TIME_PLAYED_MSG" then
+            local totalTime, levelTime = ...
+            FlockEntesCharacterTracker.timePlayed = {
+                totalTime = totalTime,
+                levelTime = levelTime,
+            }
         elseif event == "PLAYER_ENTERING_WORLD" or
             event == "CHALLENGE_MODE_COMPLETED" or
             event == "CHALLENGE_MODE_COMPLETED_REWARDS" then
             debug("Updating data on event " .. event)
             update()
             scheduleDelayedUpdate(60)
+        elseif event == "WEEKLY_REWARDS_UPDATE" then
+            debug("Updating data on event " .. event)
+            update()
+
+            if mainFrame:IsShown() then
+                renderTable()
+                renderGlobalRows()
+            end
         else
             debug("Updating data on event " .. event)
             update()
