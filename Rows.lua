@@ -251,9 +251,31 @@ local voidcore = {
         return C_CurrencyInfo.GetCurrencyInfo(3418)
     end,
     format = function(value)
-        return value.quantity .. " (" .. value.totalEarned .. " / " .. value.maxQuantity .. ")"
+        local text = value.quantity .. " (" .. value.totalEarned .. " / " .. value.maxQuantity .. ")"
+
+        if value.quantity > 0 then
+            return "|cff0099ff" .. text .. "|r"
+        end
+
+        return text
     end,
 }
+
+local token = {
+    key = "thalassianTokenOfMerit",
+    title = "Tokens",
+    updateValue = function(stored)
+        return C_Item.GetItemCount(258556, true)
+    end,
+    format = function(value)
+        if value and value > 0 then
+            return "|cff0099ff" .. value .. "|r"
+        else
+            return 0
+        end
+    end,
+}
+
 
 local heroCrest = {
     key = "heroCrest",
@@ -312,7 +334,7 @@ local vault = {
     end,
     format = function(value)
         if value.hasAvailableRewards then
-            return "|cff00ff00OPEN ME|r"
+            return "|cff0099ffOPEN ME|r"
         end
 
         local activities = value.activities
@@ -409,6 +431,7 @@ local ROWS = {
     {},
     bonusroll,
     voidcore,
+    token,
     {},
     heroCrest,
     mythCrest,
