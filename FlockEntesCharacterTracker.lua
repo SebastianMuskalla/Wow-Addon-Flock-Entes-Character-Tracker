@@ -165,7 +165,9 @@ local function renderCell(parent, width, height, relative_to, y_offset, label, j
     font:SetJustifyV("MIDDLE")
     frame:SetPushedTextOffset(0, 0)
     font:SetWidth(width)
-    font:SetHeight(20)
+    font:SetHeight(height)
+    font:SetWordWrap(true)
+    font:SetNonSpaceWrap(false)
 
     if fontPath then
         font:SetFont(fontPath, 12, "")
@@ -177,7 +179,7 @@ local function renderCell(parent, width, height, relative_to, y_offset, label, j
 end
 
 local function rowLines(section)
-    return (section.type == TYPE_INPUT and section.lines) or 1
+    return section.lines or 1
 end
 
 local function rowHeight(section)

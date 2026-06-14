@@ -276,6 +276,95 @@ local token = {
     end,
 }
 
+local function countItems(itemIDs)
+    local count = 0
+
+    for _, itemID in ipairs(itemIDs) do
+        count = count + C_Item.GetItemCount(itemID)
+    end
+
+    return count
+end
+
+local function restockSegment(count, label, minimum)
+    local text = count .. " " .. label
+    return count < minimum and "|cffff0000" .. text .. "|r" or text
+end
+
+local restock = {
+    key = "restock",
+    title = "Restock",
+    lines = 3,
+    updateValue = function(stored)
+        local _, classFile = UnitClass("player")
+
+        return {
+            classFile = classFile,
+            flasks = countItems({
+                241320, 241321, -- Flask of Thalassian Resistance
+                241322, 241323, -- Flask of the Magisters
+                241324, 241325, -- Flask of the Blood Knights
+                241326, 241327, -- Flask of the Shattered Sun
+                241334, 241335, -- Vicious Thalassian Flask of Honor
+            }),
+            combatPotions = countItems({
+                241308, 241309, -- Light's Potential
+            }),
+            healthPotions = countItems({
+                241304, 241305, -- Silvermoon Health Potion
+            }),
+            phoenixOil = countItems({
+                243733, 243734, -- Thalassian Phoenix Oil
+            }),
+            food = countItems({
+                242275, -- Royal Roast
+                255847, -- Impossibly Royal Roast
+            }),
+            drums = countItems({
+                244639, -- Void-Touched Drums
+            }),
+            battleRez = countItems({
+                248486, 269586, -- Emergency Soul Link
+            }),
+        }
+    end,
+    format = function(value)
+        local battleRezClasses = {
+            DEATHKNIGHT = true,
+            DRUID = true,
+            PALADIN = true,
+            WARLOCK = true,
+        }
+        local bloodlustClasses = {
+            EVOKER = true,
+            HUNTER = true,
+            MAGE = true,
+            SHAMAN = true,
+        }
+        local segments = {
+            restockSegment(value.flasks or 0, "Flask", 10),
+            restockSegment(value.combatPotions or 0, "CPot", 50),
+            restockSegment(value.healthPotions or 0, "HPPot", 50),
+        }
+
+        if value.classFile ~= "PALADIN" then
+            table.insert(segments, restockSegment(value.phoenixOil or 0, "Oil", 10))
+        end
+
+        table.insert(segments, restockSegment(value.food or 0, "Food", 40))
+
+        if not bloodlustClasses[value.classFile] then
+            table.insert(segments, restockSegment(value.drums or 0, "Drums", 10))
+        end
+
+        if not battleRezClasses[value.classFile] then
+            table.insert(segments, restockSegment(value.battleRez or 0, "BR", 10))
+        end
+
+        return table.concat(segments, ", ")
+    end,
+}
+
 
 local heroCrest = {
     key = "heroCrest",
@@ -355,12 +444,12 @@ local mythicPlusRuns = {
     key = "mythicPlusRuns",
     title = "M+10 Runs",
     updateValue = function(stored)
-        return C_MythicPlus.GetRunHistory(false, false, true)
+        return C_MythicPlus.GetRunHistory(false, true, true)
     end,
     format = function(value)
         local count = 0
         for _, run in ipairs(value) do
-            if run.thisWeek and run.completed and run.level >= 10 then
+            if run.thisWeek and run.level >= 10 then
                 count = count + 1
             end
         end
@@ -444,7 +533,9 @@ local ROWS = {
     {},
     lastUpdated,
     {},
-    todo
+    todo,
+    {},
+    restock,
 }
 
 
